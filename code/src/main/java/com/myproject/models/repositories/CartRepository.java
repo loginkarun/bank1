@@ -12,22 +12,22 @@ import java.util.UUID;
  */
 @Repository
 public interface CartRepository extends JpaRepository<Cart, UUID> {
-
+    
     /**
      * Find cart by user ID
      */
     Optional<Cart> findByUserId(UUID userId);
-
+    
     /**
      * Find cart by session ID
      */
     Optional<Cart> findBySessionId(String sessionId);
-
+    
     /**
      * Delete cart by user ID
      */
     void deleteByUserId(UUID userId);
-
+    
     /**
      * Delete cart by session ID
      */
