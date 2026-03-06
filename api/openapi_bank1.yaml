@@ -4,19 +4,21 @@ info:
   version: 1.0.0
   description: Generated from LLD batch - Shopping Cart API
 servers:
-  - url: https://example.com
+  - url: https://api.bank1.com
     description: Production server
 tags:
-  - name: Cart
-    description: Shopping cart operations
+  - name: Cart Management
+    description: Operations related to shopping cart management
 paths:
   /api/cart/add:
     post:
       tags:
-        - Cart
+        - Cart Management
       summary: Add item to cart
-      description: Adds a product to the shopping cart. Validates product existence and stock availability.
+      description: Adds a product to the shopping cart with specified quantity
       operationId: SCRUM-11692_add_item_to_cart_post
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -31,13 +33,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/CartDTO'
         '400':
-          description: Validation error - Invalid quantity or request format
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Unauthorized - Authentication required
+          description: Unauthorized access
           content:
             application/json:
               schema:
@@ -54,15 +56,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
   /api/cart:
     get:
       tags:
-        - Cart
+        - Cart Management
       summary: Get cart
-      description: Retrieves the current shopping cart for the authenticated user/session.
+      description: Retrieves the current shopping cart for the authenticated user
       operationId: SCRUM-11692_get_cart_get
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Cart retrieved successfully
@@ -71,7 +73,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CartDTO'
         '401':
-          description: Unauthorized - Authentication required
+          description: Unauthorized access
           content:
             application/json:
               schema:
@@ -82,15 +84,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
   /api/cart/remove:
     delete:
       tags:
-        - Cart
+        - Cart Management
       summary: Remove item from cart
-      description: Removes a specific product from the shopping cart.
+      description: Removes a specific product from the shopping cart
       operationId: SCRUM-11692_remove_item_from_cart_delete
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -105,13 +107,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/CartDTO'
         '400':
-          description: Validation error - Invalid request format
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Unauthorized - Authentication required
+          description: Unauthorized access
           content:
             application/json:
               schema:
@@ -122,15 +124,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
   /api/cart/update:
     put:
       tags:
-        - Cart
+        - Cart Management
       summary: Update item quantity
-      description: Updates the quantity of a specific product in the shopping cart. Validates stock availability.
+      description: Updates the quantity of a specific product in the shopping cart
       operationId: SCRUM-11692_update_item_quantity_put
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -145,38 +147,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/CartDTO'
         '400':
-          description: Validation error - Invalid quantity
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Unauthorized - Authentication required
+          description: Unauthorized access
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Product not found in cart
+          description: Product not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Out of stock - Requested quantity exceeds available stock
+          description: Out of stock
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
   /api/cart/clear:
     delete:
       tags:
-        - Cart
+        - Cart Management
       summary: Clear cart
-      description: Removes all items from the shopping cart.
+      description: Removes all items from the shopping cart
       operationId: SCRUM-11692_clear_cart_delete
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Cart successfully cleared
@@ -185,7 +187,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CartDTO'
         '401':
-          description: Unauthorized - Authentication required
+          description: Unauthorized access
           content:
             application/json:
               schema:
@@ -196,9 +198,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      security:
-        - bearerAuth: []
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
   schemas:
     AddItemRequest:
       type: object
@@ -209,12 +215,12 @@ components:
         productId:
           type: string
           format: uuid
-          description: Unique identifier of the product. Must exist in Product database.
-          example: 550e8400-e29b-41d4-a716-446655440000
+          description: Unique identifier of the product
+          example: "550e8400-e29b-41d4-a716-446655440000"
         quantity:
           type: integer
           minimum: 1
-          description: Quantity of the product to add. Must be greater than 0 and not exceed available stock.
+          description: Quantity of the product to add
           example: 2
     RemoveItemRequest:
       type: object
@@ -224,8 +230,8 @@ components:
         productId:
           type: string
           format: uuid
-          description: Unique identifier of the product to remove from cart.
-          example: 550e8400-e29b-41d4-a716-446655440000
+          description: Unique identifier of the product to remove
+          example: "550e8400-e29b-41d4-a716-446655440000"
     UpdateItemRequest:
       type: object
       required:
@@ -235,12 +241,12 @@ components:
         productId:
           type: string
           format: uuid
-          description: Unique identifier of the product. Must exist in cart.
-          example: 550e8400-e29b-41d4-a716-446655440000
+          description: Unique identifier of the product
+          example: "550e8400-e29b-41d4-a716-446655440000"
         quantity:
           type: integer
           minimum: 1
-          description: New quantity for the product. Must be greater than 0 and not exceed available stock.
+          description: New quantity for the product
           example: 5
     CartDTO:
       type: object
@@ -249,54 +255,68 @@ components:
           type: string
           format: uuid
           description: Unique identifier of the cart
-          example: 123e4567-e89b-12d3-a456-426614174000
+          example: "660e8400-e29b-41d4-a716-446655440000"
         userId:
           type: string
           format: uuid
-          description: User ID or session ID associated with the cart
-          example: 789e0123-e89b-12d3-a456-426614174999
+          description: Unique identifier of the user
+          example: "770e8400-e29b-41d4-a716-446655440000"
+        sessionId:
+          type: string
+          description: Session identifier for guest users
+          example: "session_abc123xyz"
         items:
           type: array
           description: List of items in the cart
           items:
-            $ref: '#/components/schemas/CartItem'
+            $ref: '#/components/schemas/CartItemDTO'
         total:
           type: number
           format: decimal
           description: Total cost of all items in the cart
           example: 299.99
-    CartItem:
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when cart was created
+          example: "2024-01-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when cart was last updated
+          example: "2024-01-15T11:45:00Z"
+    CartItemDTO:
       type: object
       properties:
         id:
           type: string
           format: uuid
           description: Unique identifier of the cart item
-          example: 456e7890-e89b-12d3-a456-426614174111
+          example: "880e8400-e29b-41d4-a716-446655440000"
         productId:
           type: string
           format: uuid
-          description: Product identifier
-          example: 550e8400-e29b-41d4-a716-446655440000
+          description: Unique identifier of the product
+          example: "550e8400-e29b-41d4-a716-446655440000"
         productName:
           type: string
           description: Name of the product
-          example: Wireless Mouse
+          example: "Wireless Mouse"
         quantity:
           type: integer
           minimum: 1
-          description: Quantity of the product in cart
+          description: Quantity of the product
           example: 2
         price:
           type: number
           format: decimal
-          description: Price per unit of the product
-          example: 49.99
+          description: Price per unit
+          example: 29.99
         subtotal:
           type: number
           format: decimal
           description: Total price for this item (quantity * price)
-          example: 99.98
+          example: 59.98
     ErrorResponse:
       type: object
       properties:
@@ -304,22 +324,22 @@ components:
           type: string
           format: date-time
           description: Timestamp when the error occurred
-          example: 2024-01-15T10:30:00Z
+          example: "2024-01-15T12:00:00Z"
         traceId:
           type: string
           description: Unique trace identifier for debugging
-          example: abc123-def456-ghi789
+          example: "trace_xyz789"
         errorCode:
           type: string
           description: Application-specific error code
-          example: PRODUCT_NOT_FOUND
+          example: "PRODUCT_NOT_FOUND"
         message:
           type: string
           description: Human-readable error message
-          example: Product not found
+          example: "The requested product does not exist"
         details:
           type: array
-          description: Detailed error information
+          description: Additional error details
           items:
             $ref: '#/components/schemas/ErrorDetail'
     ErrorDetail:
@@ -328,14 +348,8 @@ components:
         field:
           type: string
           description: Field name that caused the error
-          example: productId
+          example: "productId"
         issue:
           type: string
           description: Description of the issue
-          example: Product with given ID does not exist
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT token or Spring Session token for authentication
+          example: "Product with given ID does not exist in database"
