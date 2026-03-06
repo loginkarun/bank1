@@ -7,32 +7,28 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
-import java.util.List;
 
 /**
- * CORS Configuration for Angular integration
+ * CORS configuration for Angular integration
  */
 @Configuration
 public class CorsConfig {
-
+    
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         
         // Allow Angular dev server
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(Arrays.asList("http://localhost:4200"));
         
-        // Allow all headers
-        config.setAllowedHeaders(Arrays.asList("*"));
+        // Allow any header
+        config.addAllowedHeader("*");
         
-        // Allow all HTTP methods
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        // Allow any method
+        config.addAllowedMethod("*");
         
         // Allow credentials
         config.setAllowCredentials(true);
-        
-        // Max age for preflight requests
-        config.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
