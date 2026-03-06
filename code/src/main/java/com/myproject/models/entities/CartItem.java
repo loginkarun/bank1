@@ -2,6 +2,7 @@ package com.myproject.models.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,40 +10,41 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Entity representing an item in the shopping cart
+ * CartItem entity representing an item in the shopping cart
  */
 @Entity
 @Table(name = "cart_item")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class CartItem {
-
+    
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)
     private Cart cart;
-
+    
     @Column(name = "product_id", nullable = false)
     private UUID productId;
-
+    
     @Column(name = "product_name")
     private String productName;
-
+    
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
-
-    @Column(name = "price", precision = 10, scale = 2, nullable = false)
+    
+    @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
-
+    
     @Column(name = "subtotal", precision = 10, scale = 2)
     private BigDecimal subtotal;
-
+    
     /**
-     * Calculate subtotal before persisting
+     * Calculate subtotal before persist/update
      */
     @PrePersist
     @PreUpdate
