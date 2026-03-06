@@ -9,16 +9,16 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 /**
- * Request DTO for updating item quantity in cart
+ * Request DTO for updating item quantity in the cart
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateItemRequest {
-    
+
     @NotNull(message = "Product ID is required")
     private UUID productId;
-    
+
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
