@@ -1,10 +1,10 @@
 package com.myproject.services.impl;
 
 import com.myproject.exceptions.CartNotFoundException;
-import com.myproject.exceptions.InvalidQuantityException;
-import com.myproject.exceptions.OutOfStockException;
-import com.myproject.exceptions.ProductNotFoundException;
-import com.myproject.models.dtos.*;
+import com.myproject.models.dtos.AddItemRequest;
+import com.myproject.models.dtos.CartDTO;
+import com.myproject.models.dtos.CartItemDTO;
+import com.myproject.models.dtos.UpdateItemRequest;
 import com.myproject.models.entities.Cart;
 import com.myproject.models.entities.CartItem;
 import com.myproject.models.entities.Product;
@@ -16,7 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -29,193 +30,163 @@ import java.util.stream.Collectors;
 @Slf4j
 @Transactional
 public class CartServiceImpl implements CartService {
-
+    
     private final CartRepository cartRepository;
     private final ProductService productService;
-
+    
     @Override
-    public CartDTO addItemToCart(AddItemRequest request, UUID userId, String sessionId) {
-        log.info("Adding item to cart - ProductID: {}, Quantity: {}", request.getProductId(), request.getQuantity());
+    public CartDTO addItemToCart(UUID userId, AddItemRequest request) {
+        log.info("Adding item to cart for user: {}, product: {}, quantity: {}", 
+            userId, request.getProductId(), request.getQuantity());
         
-        // Validate product exists
-        Product product = productService.findById(request.getProductId());
-        
-        // Validate stock
-        if (!product.hasStock(request.getQuantity())) {
-            throw new OutOfStockException(request.getProductId(), request.getQuantity(), product.getStock());
-        }
+        // Validate product and stock
+        Product product = productService.getProductById(request.getProductId());
+        productService.validateStock(request.getProductId(), request.getQuantity());
         
         // Get or create cart
-        Cart cart = getOrCreateCart(userId, sessionId);
+        Cart cart = cartRepository.findByUserId(userId)
+            .orElseGet(() -> createNewCart(userId));
         
         // Check if item already exists in cart
         Optional<CartItem> existingItem = cart.getItems().stream()
-                .filter(item -> item.getProductId().equals(request.getProductId()))
-                .findFirst();
+            .filter(item -> item.getProductId().equals(request.getProductId()))
+            .findFirst();
         
         if (existingItem.isPresent()) {
             // Update quantity
             CartItem item = existingItem.get();
             int newQuantity = item.getQuantity() + request.getQuantity();
-            
-            if (!product.hasStock(newQuantity)) {
-                throw new OutOfStockException(request.getProductId(), newQuantity, product.getStock());
-            }
-            
+            productService.validateStock(request.getProductId(), newQuantity);
             item.setQuantity(newQuantity);
             item.calculateSubtotal();
+            log.debug("Updated existing cart item quantity to: {}", newQuantity);
         } else {
             // Add new item
-            CartItem newItem = new CartItem();
-            newItem.setProductId(request.getProductId());
-            newItem.setProductName(product.getName());
-            newItem.setQuantity(request.getQuantity());
-            newItem.setPrice(product.getPrice());
+            CartItem newItem = CartItem.builder()
+                .productId(product.getId())
+                .productName(product.getName())
+                .quantity(request.getQuantity())
+                .price(product.getPrice())
+                .build();
+            newItem.calculateSubtotal();
             cart.addItem(newItem);
+            log.debug("Added new item to cart");
         }
         
         cart.recalculateTotal();
         Cart savedCart = cartRepository.save(cart);
         
-        log.info("Item added successfully to cart ID: {}", savedCart.getId());
         return convertToDTO(savedCart);
     }
-
+    
     @Override
     @Transactional(readOnly = true)
-    public CartDTO getCart(UUID userId, String sessionId) {
-        log.debug("Fetching cart for userId: {} or sessionId: {}", userId, sessionId);
-        Cart cart = findCart(userId, sessionId)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found", true));
+    public CartDTO getCart(UUID userId) {
+        log.info("Fetching cart for user: {}", userId);
+        Cart cart = cartRepository.findByUserId(userId)
+            .orElseThrow(() -> new CartNotFoundException(userId));
         return convertToDTO(cart);
     }
-
+    
     @Override
-    public CartDTO removeItemFromCart(RemoveItemRequest request, UUID userId, String sessionId) {
-        log.info("Removing item from cart - ProductID: {}", request.getProductId());
+    public CartDTO removeItemFromCart(UUID userId, UUID productId) {
+        log.info("Removing item from cart for user: {}, product: {}", userId, productId);
         
-        Cart cart = findCart(userId, sessionId)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found", true));
+        Cart cart = cartRepository.findByUserId(userId)
+            .orElseThrow(() -> new CartNotFoundException(userId));
         
         CartItem itemToRemove = cart.getItems().stream()
-                .filter(item -> item.getProductId().equals(request.getProductId()))
-                .findFirst()
-                .orElseThrow(() -> new ProductNotFoundException("Product not found in cart"));
+            .filter(item -> item.getProductId().equals(productId))
+            .findFirst()
+            .orElseThrow(() -> new CartNotFoundException("Product not found in cart"));
         
         cart.removeItem(itemToRemove);
         cart.recalculateTotal();
         Cart savedCart = cartRepository.save(cart);
         
-        log.info("Item removed successfully from cart ID: {}", savedCart.getId());
         return convertToDTO(savedCart);
     }
-
+    
     @Override
-    public CartDTO updateItemQuantity(UpdateItemRequest request, UUID userId, String sessionId) {
-        log.info("Updating item quantity - ProductID: {}, NewQuantity: {}", request.getProductId(), request.getQuantity());
-        
-        if (request.getQuantity() <= 0) {
-            throw new InvalidQuantityException(request.getQuantity());
-        }
+    public CartDTO updateItemQuantity(UUID userId, UpdateItemRequest request) {
+        log.info("Updating item quantity in cart for user: {}, product: {}, new quantity: {}", 
+            userId, request.getProductId(), request.getQuantity());
         
         // Validate product and stock
-        Product product = productService.findById(request.getProductId());
-        if (!product.hasStock(request.getQuantity())) {
-            throw new OutOfStockException(request.getProductId(), request.getQuantity(), product.getStock());
-        }
+        productService.getProductById(request.getProductId());
+        productService.validateStock(request.getProductId(), request.getQuantity());
         
-        Cart cart = findCart(userId, sessionId)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found", true));
+        Cart cart = cartRepository.findByUserId(userId)
+            .orElseThrow(() -> new CartNotFoundException(userId));
         
         CartItem item = cart.getItems().stream()
-                .filter(i -> i.getProductId().equals(request.getProductId()))
-                .findFirst()
-                .orElseThrow(() -> new ProductNotFoundException("Product not found in cart"));
+            .filter(cartItem -> cartItem.getProductId().equals(request.getProductId()))
+            .findFirst()
+            .orElseThrow(() -> new CartNotFoundException("Product not found in cart"));
         
         item.setQuantity(request.getQuantity());
         item.calculateSubtotal();
         cart.recalculateTotal();
-        
         Cart savedCart = cartRepository.save(cart);
         
-        log.info("Item quantity updated successfully in cart ID: {}", savedCart.getId());
         return convertToDTO(savedCart);
     }
-
+    
     @Override
-    public CartDTO clearCart(UUID userId, String sessionId) {
-        log.info("Clearing cart for userId: {} or sessionId: {}", userId, sessionId);
+    public CartDTO clearCart(UUID userId) {
+        log.info("Clearing cart for user: {}", userId);
         
-        Cart cart = findCart(userId, sessionId)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found", true));
+        Cart cart = cartRepository.findByUserId(userId)
+            .orElseThrow(() -> new CartNotFoundException(userId));
         
         cart.getItems().clear();
-        cart.setTotal(BigDecimal.ZERO);
+        cart.recalculateTotal();
         Cart savedCart = cartRepository.save(cart);
         
-        log.info("Cart cleared successfully - Cart ID: {}", savedCart.getId());
         return convertToDTO(savedCart);
     }
-
+    
     /**
-     * Find existing cart by userId or sessionId
+     * Create a new cart for user
      */
-    private Optional<Cart> findCart(UUID userId, String sessionId) {
-        if (userId != null) {
-            return cartRepository.findByUserId(userId);
-        } else if (sessionId != null && !sessionId.isEmpty()) {
-            return cartRepository.findBySessionId(sessionId);
-        }
-        return Optional.empty();
+    private Cart createNewCart(UUID userId) {
+        log.debug("Creating new cart for user: {}", userId);
+        return Cart.builder()
+            .userId(userId)
+            .items(new ArrayList<>())
+            .build();
     }
-
-    /**
-     * Get existing cart or create new one
-     */
-    private Cart getOrCreateCart(UUID userId, String sessionId) {
-        Optional<Cart> existingCart = findCart(userId, sessionId);
-        
-        if (existingCart.isPresent()) {
-            return existingCart.get();
-        }
-        
-        Cart newCart = new Cart();
-        newCart.setUserId(userId);
-        newCart.setSessionId(sessionId);
-        newCart.setTotal(BigDecimal.ZERO);
-        return cartRepository.save(newCart);
-    }
-
+    
     /**
      * Convert Cart entity to CartDTO
      */
     private CartDTO convertToDTO(Cart cart) {
-        CartDTO dto = new CartDTO();
-        dto.setId(cart.getId());
-        dto.setUserId(cart.getUserId());
-        dto.setSessionId(cart.getSessionId());
-        dto.setTotal(cart.getTotal());
-        dto.setCreatedAt(cart.getCreatedAt());
-        dto.setUpdatedAt(cart.getUpdatedAt());
+        List<CartItemDTO> itemDTOs = cart.getItems().stream()
+            .map(this::convertItemToDTO)
+            .collect(Collectors.toList());
         
-        dto.setItems(cart.getItems().stream()
-                .map(this::convertItemToDTO)
-                .collect(Collectors.toList()));
-        
-        return dto;
+        return CartDTO.builder()
+            .id(cart.getId())
+            .userId(cart.getUserId())
+            .sessionId(cart.getSessionId())
+            .items(itemDTOs)
+            .total(cart.getTotal())
+            .createdAt(cart.getCreatedAt())
+            .updatedAt(cart.getUpdatedAt())
+            .build();
     }
-
+    
     /**
      * Convert CartItem entity to CartItemDTO
      */
     private CartItemDTO convertItemToDTO(CartItem item) {
-        CartItemDTO dto = new CartItemDTO();
-        dto.setId(item.getId());
-        dto.setProductId(item.getProductId());
-        dto.setProductName(item.getProductName());
-        dto.setQuantity(item.getQuantity());
-        dto.setPrice(item.getPrice());
-        dto.setSubtotal(item.getSubtotal());
-        return dto;
+        return CartItemDTO.builder()
+            .id(item.getId())
+            .productId(item.getProductId())
+            .productName(item.getProductName())
+            .quantity(item.getQuantity())
+            .price(item.getPrice())
+            .subtotal(item.getSubtotal())
+            .build();
     }
 }
