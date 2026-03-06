@@ -2,6 +2,7 @@ package com.myproject.exceptions;
 
 import com.myproject.models.dtos.ErrorDetail;
 import com.myproject.models.dtos.ErrorResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -16,106 +17,111 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Global exception handler for REST controllers
+ * Global exception handler for all REST controllers
  */
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
-    
-    /**
-     * Handle ProductNotFoundException
-     */
+
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleProductNotFoundException(
             ProductNotFoundException ex, WebRequest request) {
         
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .traceId(UUID.randomUUID().toString())
-            .errorCode("PRODUCT_NOT_FOUND")
-            .message(ex.getMessage())
-            .details(new ArrayList<>())
-            .build();
+        log.error("Product not found: {}", ex.getMessage());
         
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            UUID.randomUUID().toString(),
+            "PRODUCT_NOT_FOUND",
+            ex.getMessage()
+        );
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
-    
-    /**
-     * Handle OutOfStockException
-     */
+
     @ExceptionHandler(OutOfStockException.class)
     public ResponseEntity<ErrorResponse> handleOutOfStockException(
             OutOfStockException ex, WebRequest request) {
         
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .traceId(UUID.randomUUID().toString())
-            .errorCode("OUT_OF_STOCK")
-            .message(ex.getMessage())
-            .details(new ArrayList<>())
-            .build();
+        log.error("Out of stock: {}", ex.getMessage());
         
-        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            UUID.randomUUID().toString(),
+            "OUT_OF_STOCK",
+            ex.getMessage()
+        );
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
-    
-    /**
-     * Handle CartNotFoundException
-     */
+
     @ExceptionHandler(CartNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleCartNotFoundException(
             CartNotFoundException ex, WebRequest request) {
         
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .traceId(UUID.randomUUID().toString())
-            .errorCode("CART_NOT_FOUND")
-            .message(ex.getMessage())
-            .details(new ArrayList<>())
-            .build();
+        log.error("Cart not found: {}", ex.getMessage());
         
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            UUID.randomUUID().toString(),
+            "CART_NOT_FOUND",
+            ex.getMessage()
+        );
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
-    
-    /**
-     * Handle validation errors
-     */
+
+    @ExceptionHandler(InvalidQuantityException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidQuantityException(
+            InvalidQuantityException ex, WebRequest request) {
+        
+        log.error("Invalid quantity: {}", ex.getMessage());
+        
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            UUID.randomUUID().toString(),
+            "INVALID_QUANTITY",
+            ex.getMessage()
+        );
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex, WebRequest request) {
         
+        log.error("Validation error: {}", ex.getMessage());
+        
         List<ErrorDetail> details = new ArrayList<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
-            details.add(ErrorDetail.builder()
-                .field(error.getField())
-                .issue(error.getDefaultMessage())
-                .build());
+            details.add(new ErrorDetail(error.getField(), error.getDefaultMessage()));
         }
         
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .traceId(UUID.randomUUID().toString())
-            .errorCode("VALIDATION_ERROR")
-            .message("Validation failed")
-            .details(details)
-            .build();
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            UUID.randomUUID().toString(),
+            "VALIDATION_ERROR",
+            "Input validation failed"
+        );
+        error.setDetails(details);
         
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
-    
-    /**
-     * Handle generic exceptions
-     */
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
+    public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception ex, WebRequest request) {
         
-        ErrorResponse error = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .traceId(UUID.randomUUID().toString())
-            .errorCode("INTERNAL_ERROR")
-            .message("An unexpected error occurred")
-            .details(new ArrayList<>())
-            .build();
+        log.error("Unexpected error occurred: {}", ex.getMessage(), ex);
         
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            UUID.randomUUID().toString(),
+            "INTERNAL_SERVER_ERROR",
+            "An unexpected error occurred. Please try again later."
+        );
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }
