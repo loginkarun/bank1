@@ -1,5 +1,6 @@
 package com.myproject.services.impl;
 
+import com.myproject.exceptions.OutOfStockException;
 import com.myproject.exceptions.ProductNotFoundException;
 import com.myproject.models.entities.Product;
 import com.myproject.models.repositories.ProductRepository;
@@ -9,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -18,44 +18,25 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 public class ProductServiceImpl implements ProductService {
-
+    
     private final ProductRepository productRepository;
-
+    
     @Override
-    @Transactional(readOnly = true)
-    public Product findById(UUID productId) {
-        log.debug("Finding product with ID: {}", productId);
+    public Product getProductById(UUID productId) {
+        log.debug("Fetching product with ID: {}", productId);
         return productRepository.findById(productId)
-                .orElseThrow(() -> new ProductNotFoundException(productId));
+            .orElseThrow(() -> new ProductNotFoundException(productId));
     }
-
+    
     @Override
-    @Transactional(readOnly = true)
-    public boolean existsById(UUID productId) {
-        log.debug("Checking if product exists with ID: {}", productId);
-        return productRepository.existsById(productId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean hasStock(UUID productId, int quantity) {
-        log.debug("Checking stock for product ID: {} with quantity: {}", productId, quantity);
-        Product product = findById(productId);
-        return product.hasStock(quantity);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Product> getAllProducts() {
-        log.debug("Fetching all products");
-        return productRepository.findAll();
-    }
-
-    @Override
-    public Product createProduct(Product product) {
-        log.info("Creating new product: {}", product.getName());
-        return productRepository.save(product);
+    public void validateStock(UUID productId, int quantity) {
+        log.debug("Validating stock for product: {}, quantity: {}", productId, quantity);
+        Product product = getProductById(productId);
+        
+        if (product.getStock() < quantity) {
+            throw new OutOfStockException(productId, quantity, product.getStock());
+        }
     }
 }
