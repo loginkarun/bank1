@@ -2,7 +2,6 @@ package com.myproject.services.interfaces;
 
 import com.myproject.models.dtos.AddItemRequest;
 import com.myproject.models.dtos.CartDTO;
-import com.myproject.models.dtos.RemoveItemRequest;
 import com.myproject.models.dtos.UpdateItemRequest;
 
 import java.util.UUID;
@@ -11,29 +10,29 @@ import java.util.UUID;
  * Service interface for cart operations
  */
 public interface CartService {
-
+    
     /**
-     * Add an item to the cart
+     * Add item to cart
      */
-    CartDTO addItemToCart(AddItemRequest request, UUID userId, String sessionId);
-
+    CartDTO addItemToCart(UUID userId, AddItemRequest request);
+    
     /**
-     * Get cart for user or session
+     * Get cart for user
      */
-    CartDTO getCart(UUID userId, String sessionId);
-
+    CartDTO getCart(UUID userId);
+    
     /**
-     * Remove an item from the cart
+     * Remove item from cart
      */
-    CartDTO removeItemFromCart(RemoveItemRequest request, UUID userId, String sessionId);
-
+    CartDTO removeItemFromCart(UUID userId, UUID productId);
+    
     /**
-     * Update item quantity in the cart
+     * Update item quantity in cart
      */
-    CartDTO updateItemQuantity(UpdateItemRequest request, UUID userId, String sessionId);
-
+    CartDTO updateItemQuantity(UUID userId, UpdateItemRequest request);
+    
     /**
-     * Clear all items from the cart
+     * Clear cart
      */
-    CartDTO clearCart(UUID userId, String sessionId);
+    CartDTO clearCart(UUID userId);
 }
